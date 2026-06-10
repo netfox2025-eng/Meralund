@@ -18,48 +18,44 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Install Dependencies
+    - name: Install System & Python Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install telethon playwright requests huggingface_hub
         playwright install chromium
 
-    - name: Download Files From Hugging Face
+    - name: Download Files From Hugging Face Space
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
-        # Official Hugging Face tool se direct database files pull karenge
-        python -c "
-        from huggingface_hub import hf_hub_download
-        import os
-        token = os.environ.get('HF_TOKEN')
-        for f in ['auto_scraper.py', 'posted_movies.txt', 'page_tracker.txt']:
-            try:
-                hf_hub_download(repo_id='Sudarshan143/Scrapper2', filename=f, repo_type='space', local_dir='.', token=token)
-                print(f'Downloaded: {f}')
-            except Exception as e:
-                print(f'Skipped or error on {f}: {e}')
-        "
+        # 🚀 CLI download mode bina kisi header error ke files nikalega
+        echo "📥 Downloading scripts and database..."
+        huggingface-cli download Sudarshan143/Scrapper2 auto_scraper.py --repo-type space --local-dir . --token "$HF_TOKEN"
+        huggingface-cli download Sudarshan143/Scrapper2 posted_movies.txt --repo-type space --local-dir . --token "$HF_TOKEN" || echo "posted_movies.txt not found, creating new"
+        huggingface-cli download Sudarshan143/Scrapper2 page_tracker.txt --repo-type space --local-dir . --token "$HF_TOKEN" || echo "page_tracker.txt not found, creating new"
 
     - name: Run Smart Splitter Scraper
       run: |
+        # 🎬 Main scraper running zone
         python auto_scraper.py
 
     - name: Upload Updated Database Back to Hugging Face Space
-      if: always() # Script fail ho ya pass, data save hona chahiye
+      if: always() # Kuch bhi ho jaye, data secure save hona chahiye
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
+        # 📤 Update logs back to space via standard python block
+        echo "📤 Syncing progress back to Hugging Face..."
         python -c "
-        from huggingface_hub import HfApi
         import os
-        token = os.environ.get('HF_TOKEN')
+        from huggingface_hub import HfApi
+        token = os.environ.get('HF_TOKEN').strip()
         api = HfApi(token=token)
         for f in ['posted_movies.txt', 'page_tracker.txt']:
             if os.path.exists(f):
                 try:
                     api.upload_file(path_or_fileobj=f, path_in_repo=f, repo_id='Sudarshan143/Scrapper2', repo_type='space')
-                    print(f'Successfully synced {f} to Hugging Face!')
+                    print(f'Successfully synced {f}')
                 except Exception as e:
                     print(f'Upload failed for {f}: {e}')
         "
