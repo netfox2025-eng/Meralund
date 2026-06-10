@@ -27,30 +27,30 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install playwright requests huggingface_hub
-        # Sahi tarika browser binaries aur unki system dependencies install karne ka:
         python -m playwright install chromium
         python -m playwright install-deps chromium
 
-    - name: Download Database From Hugging Face Space
+    - name: Download Files From Hugging Face Space
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
-        echo "📥 Downloading state tracker and database via HuggingFace API..."
+        echo "📥 Downloading scripts and database via HuggingFace API..."
         python -c "
         import os
         from huggingface_hub import hf_hub_download
         token = os.environ.get('HF_TOKEN', '').strip()
         if not token:
             print('❌ HF_TOKEN Secret is Missing in GitHub!')
-            exit(0)
+            exit(1)
         
-        files = ['posted_movies.txt', 'page_tracker.txt']
+        # Yahan auto_scraper.py ko download list me wapis add kar diya hai
+        files = ['auto_scraper.py', 'posted_movies.txt', 'page_tracker.txt']
         for f in files:
             try:
                 hf_hub_download(repo_id='Sudarshan143/Scrapper2', filename=f, repo_type='space', local_dir='.', token=token)
                 print(f'✅ Successfully downloaded: {f}')
             except Exception as e:
-                print(f'⚠️ Note on {f} (Might not exist yet): {e}')
+                print(f'⚠️ Note on {f}: {e}')
         "
 
     - name: Run Smart Splitter Scraper
@@ -58,7 +58,7 @@ jobs:
         if [ -f "auto_scraper.py" ]; then
           python auto_scraper.py
         else
-          echo "❌ auto_scraper.py file local workspace me nahi mili!"
+          echo "❌ auto_scraper.py file local workspace me nahi mili aur HF se bhi download nahi ho payi!"
           exit 1
         fi
 
