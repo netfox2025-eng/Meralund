@@ -1,4 +1,4 @@
-name: HG Scraper Engine via GitHub Actions
+herename: HG Scraper Engine via GitHub Actions
 
 on:
   schedule:
@@ -26,7 +26,7 @@ jobs:
     - name: Install Python Dependencies & Playwright
       run: |
         python -m pip install --upgrade pip
-        pip install playwright requests huggingface_hub
+        pip install playwright requests huggingface_hub telethon cryptg
         python -m playwright install chromium
         python -m playwright install-deps chromium
 
@@ -43,7 +43,6 @@ jobs:
             print('❌ HF_TOKEN Secret is Missing in GitHub!')
             exit(1)
         
-        # Yahan auto_scraper.py ko download list me wapis add kar diya hai
         files = ['auto_scraper.py', 'posted_movies.txt', 'page_tracker.txt']
         for f in files:
             try:
@@ -58,7 +57,7 @@ jobs:
         if [ -f "auto_scraper.py" ]; then
           python auto_scraper.py
         else
-          echo "❌ auto_scraper.py file local workspace me nahi mili aur HF se bhi download nahi ho payi!"
+          echo "❌ auto_scraper.py file local workspace me nahi mili!"
           exit 1
         fi
 
@@ -73,7 +72,7 @@ jobs:
         from huggingface_hub import HfApi
         token = os.environ.get('HF_TOKEN', '').strip()
         if not token:
-            print('❌ HF_TOKEN Secret is Missing. Cannot Upload.')
+            print('❌ HF_TOKEN Secret is Missing.')
             exit(0)
             
         api = HfApi(token=token)
@@ -85,4 +84,3 @@ jobs:
                 except Exception as e:
                     print(f'❌ Upload failed for {f}: {e}')
         "
-
