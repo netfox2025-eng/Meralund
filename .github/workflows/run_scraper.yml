@@ -28,35 +28,57 @@ jobs:
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
-        # 🚀 CLI download mode bina kisi header error ke files nikalega
-        echo "📥 Downloading scripts and database..."
-        huggingface-cli download Sudarshan143/Scrapper2 auto_scraper.py --repo-type space --local-dir . --token "$HF_TOKEN"
-        huggingface-cli download Sudarshan143/Scrapper2 posted_movies.txt --repo-type space --local-dir . --token "$HF_TOKEN" || echo "posted_movies.txt not found, creating new"
-        huggingface-cli download Sudarshan143/Scrapper2 page_tracker.txt --repo-type space --local-dir . --token "$HF_TOKEN" || echo "page_tracker.txt not found, creating new"
+        # 🚀 CLI ke naye-purane nakhro ko bypass karne ke liye direct Python API download mode
+        echo "📥 Downloading scripts and database via HuggingFace API..."
+        python -c "
+        import os
+        from huggingface_hub import hf_hub_download
+        token = os.environ.get('HF_TOKEN').strip()
+        
+        files = ['auto_scraper.py', 'posted_movies.txt', 'page_tracker.txt']
+        for f in files:
+            try:
+                hf_hub_download(
+                    repo_id='Sudarshan143/Scrapper2',
+                    filename=f,
+                    repo_type='space',
+                    local_dir='.',
+                    token=token
+                )
+                print(f'✅ Successfully downloaded: {f}')
+            except Exception as e:
+                print(f'⚠️ Note on {f}: {e}')
+        "
 
     - name: Run Smart Splitter Scraper
       run: |
-        # 🎬 Main scraper running zone
+        # 🎬 Scraper execution zone
         python auto_scraper.py
 
     - name: Upload Updated Database Back to Hugging Face Space
-      if: always() # Kuch bhi ho jaye, data secure save hona chahiye
+      if: always() # Kuch bhi ho jaye, progress database hamesha save honi chahiye
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
-        # 📤 Update logs back to space via standard python block
-        echo "📤 Syncing progress back to Hugging Face..."
+        # 📤 Progress logs ko wapas space par push karenge
+        echo "📤 Syncing database files back to Hugging Face..."
         python -c "
         import os
         from huggingface_hub import HfApi
         token = os.environ.get('HF_TOKEN').strip()
         api = HfApi(token=token)
+        
         for f in ['posted_movies.txt', 'page_tracker.txt']:
             if os.path.exists(f):
                 try:
-                    api.upload_file(path_or_fileobj=f, path_in_repo=f, repo_id='Sudarshan143/Scrapper2', repo_type='space')
-                    print(f'Successfully synced {f}')
+                    api.upload_file(
+                        path_or_fileobj=f,
+                        path_in_repo=f,
+                        repo_id='Sudarshan143/Scrapper2',
+                        repo_type='space'
+                    )
+                    print(f'✅ Successfully synced {f} to HF Space!')
                 except Exception as e:
-                    print(f'Upload failed for {f}: {e}')
+                    print(f'❌ Upload failed for {f}: {e}')
         "
 
