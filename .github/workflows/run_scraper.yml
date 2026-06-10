@@ -1,4 +1,4 @@
-name: HG Scraper Engine via GitHub Actions
+concurrency: name: HG Scraper Engine via GitHub Actions
 
 on:
   schedule:
@@ -81,4 +81,3 @@ jobs:
                 except Exception as e:
                     print(f'❌ Upload failed for {f}: {e}')
         "
-
