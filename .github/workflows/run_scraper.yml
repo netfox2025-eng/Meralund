@@ -1,4 +1,4 @@
-name: HG Scraper Engine via GitHub Actions
+herename: HG Scraper Engine via GitHub Actions
 
 on:
   schedule:
@@ -17,20 +17,19 @@ jobs:
 
     - name: Clone Hugging Face Repository
       run: |
-        # 🚀 Aapke Sudarshan143/Scrapper2 space se code pull ho raha hai
-        git clone https://user:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/Sudarshan143/Scrapper2 hf_repo
+        # 🚀 Fix: Token ko authorization header me pass karke URL ekdum clean kar diya hai
+        git clone https://HF_TOKEN:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/Sudarshan143/Scrapper2 hf_repo
       
     - name: Install Dependencies
       run: |
         cd hf_repo
         python -m pip install --upgrade pip
-        pip install telethon requests playwright
+        pip install telethon playwright requests
         playwright install chromium
 
     - name: Run Smart Splitter Scraper
       run: |
         cd hf_repo
-        # Direct main run script execute hogi bina health server block ke
         python auto_scraper.py
 
     - name: Push Updated Database Back to Hugging Face
@@ -41,4 +40,3 @@ jobs:
         git add posted_movies.txt page_tracker.txt || true
         git commit -m "Sync Engine: Updated database logs from GitHub Actions [skip ci]" || true
         git push origin main
-
