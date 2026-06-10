@@ -1,9 +1,9 @@
-herename: HG Scraper Engine via GitHub Actions
+name: HG Scraper Engine via GitHub Actions
 
 on:
   schedule:
-    - cron: '0 * * * *' # ⏰ Har ghante automatic chalega
-  workflow_dispatch: # ▶️ Manual run button
+    - cron: '0 * * * *' # Har ghante automatic chalega
+  workflow_dispatch: # Manual run button
 
 jobs:
   run-hf-scraper:
@@ -18,34 +18,49 @@ jobs:
       with:
         python-version: '3.10'
 
+    - name: Install FFMPEG (Required for Sample Clipping)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+
     - name: Install System & Python Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install telethon playwright requests huggingface_hub
+        pip install playwright requests huggingface_hub
         playwright install chromium
+        sudo playwright install-deps
 
-    - name: Download Files From Hugging Face Space
+    - name: Download Database From Hugging Face Space
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
-        echo "📥 Downloading scripts and database via HuggingFace API..."
+        echo "📥 Downloading state tracker and database via HuggingFace API..."
         python -c "
         import os
         from huggingface_hub import hf_hub_download
-        token = os.environ.get('HF_TOKEN').strip()
+        token = os.environ.get('HF_TOKEN', '').strip()
+        if not token:
+            print('❌ HF_TOKEN Secret is Missing in GitHub!')
+            exit(0)
         
-        files = ['auto_scraper.py', 'posted_movies.txt', 'page_tracker.txt']
+        files = ['posted_movies.txt', 'page_tracker.txt']
         for f in files:
             try:
                 hf_hub_download(repo_id='Sudarshan143/Scrapper2', filename=f, repo_type='space', local_dir='.', token=token)
                 print(f'✅ Successfully downloaded: {f}')
             except Exception as e:
-                print(f'⚠️ Note on {f}: {e}')
+                print(f'⚠️ Note on {f} (Might not exist yet): {e}')
         "
 
     - name: Run Smart Splitter Scraper
       run: |
-        python auto_scraper.py
+        # Agar repo me auto_scraper.py script direct commit nahi hai to run karne ke liye fallback check
+        if [ -f "auto_scraper.py" ]; then
+          python auto_scraper.py
+        else
+          echo "❌ auto_scraper.py file local workspace me nahi mili!"
+          exit 1
+        fi
 
     - name: Upload Updated Database Back to Hugging Face Space
       if: always()
@@ -56,9 +71,12 @@ jobs:
         python -c "
         import os
         from huggingface_hub import HfApi
-        token = os.environ.get('HF_TOKEN').strip()
+        token = os.environ.get('HF_TOKEN', '').strip()
+        if not token:
+            print('❌ HF_TOKEN Secret is Missing. Cannot Upload.')
+            exit(0)
+            
         api = HfApi(token=token)
-        
         for f in ['posted_movies.txt', 'page_tracker.txt']:
             if os.path.exists(f):
                 try:
@@ -66,4 +84,5 @@ jobs:
                     print(f'✅ Successfully synced {f} to HF Space!')
                 except Exception as e:
                     print(f'❌ Upload failed for {f}: {e}')
-                    "
+        "
+
