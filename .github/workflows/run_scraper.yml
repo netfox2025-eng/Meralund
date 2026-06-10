@@ -1,42 +1,66 @@
-herename: HG Scraper Engine via GitHub Actions
+name: HG Scraper Engine via GitHub Actions
 
 on:
   schedule:
-    - cron: '0 * * * *' # ⏰ Har ek ghante me automatic chalega
-  workflow_dispatch: # ▶️ Manually chalane ke liye button
+    - cron: '0 * * * *' # ⏰ Har ghante automatic chalega
+  workflow_dispatch: # ▶️ Manual run button
 
 jobs:
   run-hf-scraper:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Checkout GitHub Repo
+      uses: actions/checkout@v3
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
 
-    - name: Clone Hugging Face Repository
-      run: |
-        # 🚀 Fix: Token ko authorization header me pass karke URL ekdum clean kar diya hai
-        git clone https://HF_TOKEN:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/Sudarshan143/Scrapper2 hf_repo
-      
     - name: Install Dependencies
       run: |
-        cd hf_repo
         python -m pip install --upgrade pip
-        pip install telethon playwright requests
+        pip install telethon playwright requests huggingface_hub
         playwright install chromium
+
+    - name: Download Files From Hugging Face
+      env:
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      run: |
+        # Official Hugging Face tool se direct database files pull karenge
+        python -c "
+        from huggingface_hub import hf_hub_download
+        import os
+        token = os.environ.get('HF_TOKEN')
+        for f in ['auto_scraper.py', 'posted_movies.txt', 'page_tracker.txt']:
+            try:
+                hf_hub_download(repo_id='Sudarshan143/Scrapper2', filename=f, repo_type='space', local_dir='.', token=token)
+                print(f'Downloaded: {f}')
+            except Exception as e:
+                print(f'Skipped or error on {f}: {e}')
+        "
 
     - name: Run Smart Splitter Scraper
       run: |
-        cd hf_repo
         python auto_scraper.py
 
-    - name: Push Updated Database Back to Hugging Face
+    - name: Upload Updated Database Back to Hugging Face Space
+      if: always() # Script fail ho ya pass, data save hona chahiye
+      env:
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
-        cd hf_repo
-        git config --global user.name "GitHub Action Bot"
-        git config --global user.email "actions@github.com"
-        git add posted_movies.txt page_tracker.txt || true
-        git commit -m "Sync Engine: Updated database logs from GitHub Actions [skip ci]" || true
-        git push origin main
+        python -c "
+        from huggingface_hub import HfApi
+        import os
+        token = os.environ.get('HF_TOKEN')
+        api = HfApi(token=token)
+        for f in ['posted_movies.txt', 'page_tracker.txt']:
+            if os.path.exists(f):
+                try:
+                    api.upload_file(path_or_fileobj=f, path_in_repo=f, repo_id='Sudarshan143/Scrapper2', repo_type='space')
+                    print(f'Successfully synced {f} to Hugging Face!')
+                except Exception as e:
+                    print(f'Upload failed for {f}: {e}')
+        "
+
