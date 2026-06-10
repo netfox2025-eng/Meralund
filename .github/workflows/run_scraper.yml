@@ -1,4 +1,4 @@
-concurrency: name: HG Scraper Engine via GitHub Actions
+name: HG Scraper Engine via GitHub Actions
 
 on:
   schedule:
@@ -11,10 +11,10 @@ jobs:
 
     steps:
     - name: Checkout GitHub Repo
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4 # 🚀 Upgraded to v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5 # 🚀 Upgraded to v5
       with:
         python-version: '3.10'
 
@@ -28,7 +28,6 @@ jobs:
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
-        # 🚀 CLI ke naye-purane nakhro ko bypass karne ke liye direct Python API download mode
         echo "📥 Downloading scripts and database via HuggingFace API..."
         python -c "
         import os
@@ -38,13 +37,7 @@ jobs:
         files = ['auto_scraper.py', 'posted_movies.txt', 'page_tracker.txt']
         for f in files:
             try:
-                hf_hub_download(
-                    repo_id='Sudarshan143/Scrapper2',
-                    filename=f,
-                    repo_type='space',
-                    local_dir='.',
-                    token=token
-                )
+                hf_hub_download(repo_id='Sudarshan143/Scrapper2', filename=f, repo_type='space', local_dir='.', token=token)
                 print(f'✅ Successfully downloaded: {f}')
             except Exception as e:
                 print(f'⚠️ Note on {f}: {e}')
@@ -52,15 +45,13 @@ jobs:
 
     - name: Run Smart Splitter Scraper
       run: |
-        # 🎬 Scraper execution zone
         python auto_scraper.py
 
     - name: Upload Updated Database Back to Hugging Face Space
-      if: always() # Kuch bhi ho jaye, progress database hamesha save honi chahiye
+      if: always()
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
-        # 📤 Progress logs ko wapas space par push karenge
         echo "📤 Syncing database files back to Hugging Face..."
         python -c "
         import os
@@ -71,12 +62,7 @@ jobs:
         for f in ['posted_movies.txt', 'page_tracker.txt']:
             if os.path.exists(f):
                 try:
-                    api.upload_file(
-                        path_or_fileobj=f,
-                        path_in_repo=f,
-                        repo_id='Sudarshan143/Scrapper2',
-                        repo_type='space'
-                    )
+                    api.upload_file(path_or_fileobj=f, path_in_repo=f, repo_id='Sudarshan143/Scrapper2', repo_type='space')
                     print(f'✅ Successfully synced {f} to HF Space!')
                 except Exception as e:
                     print(f'❌ Upload failed for {f}: {e}')
