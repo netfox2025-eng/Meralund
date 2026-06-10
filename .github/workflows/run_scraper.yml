@@ -1,4 +1,4 @@
-herename: HG Scraper Engine via GitHub Actions
+name: HG Scraper Engine via GitHub Actions
 
 on:
   schedule:
@@ -46,7 +46,15 @@ jobs:
         files = ['auto_scraper.py', 'posted_movies.txt', 'page_tracker.txt']
         for f in files:
             try:
-                hf_hub_download(repo_id='Sudarshan143/Scrapper2', filename=f, repo_type='space', local_dir='.', token=token)
+                # 🛠️ FIXED: local_dir_use_symlinks=False se pure physical file download hogi, shortcut nahi!
+                hf_hub_download(
+                    repo_id='Sudarshan143/Scrapper2', 
+                    filename=f, 
+                    repo_type='space', 
+                    local_dir='.', 
+                    local_dir_use_symlinks=False, 
+                    token=token
+                )
                 print(f'✅ Successfully downloaded: {f}')
             except Exception as e:
                 print(f'⚠️ Note on {f}: {e}')
@@ -84,3 +92,4 @@ jobs:
                 except Exception as e:
                     print(f'❌ Upload failed for {f}: {e}')
         "
+
