@@ -1,4 +1,4 @@
-name: HG Scraper Engine via GitHub Actions
+name: HG Scraper Engine
 
 on:
   schedule:
@@ -6,90 +6,79 @@ on:
   workflow_dispatch: # Manual run button
 
 jobs:
-  run-hf-scraper:
+  run-scraper-job:
     runs-on: ubuntu-latest
+    timeout-minutes: 350 # Job ko 6 ghante se pehle band hone se bachane ke liye
 
     steps:
-    - name: Checkout GitHub Repo
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip' # Dependency caching enabled for speed
 
-    - name: Install FFMPEG (Required for Sample Clipping)
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ffmpeg
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libgbm-dev
 
-    - name: Install Python Dependencies & Playwright
-      run: |
-        python -m pip install --upgrade pip
-        pip install playwright requests huggingface_hub telethon cryptg
-        python -m playwright install chromium
-        python -m playwright install-deps chromium
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright requests huggingface_hub telethon aiohttp aiofiles
+          python -m playwright install chromium
+          python -m playwright install-deps chromium
 
-    - name: Download Files From Hugging Face Space
-      env:
-        HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      run: |
-        echo "📥 Downloading scripts and database via HuggingFace API..."
-        python -c "
-        import os
-        from huggingface_hub import hf_hub_download
-        token = os.environ.get('HF_TOKEN', '').strip()
-        if not token:
-            print('❌ HF_TOKEN Secret is Missing in GitHub!')
-            exit(1)
-        
-        files = ['auto_scraper.py', 'posted_movies.txt', 'page_tracker.txt']
-        for f in files:
-            try:
-                # 🛠️ FIXED: local_dir_use_symlinks=False se pure physical file download hogi, shortcut nahi!
-                hf_hub_download(
-                    repo_id='Sudarshan143/Scrapper2', 
-                    filename=f, 
-                    repo_type='space', 
-                    local_dir='.', 
-                    local_dir_use_symlinks=False, 
-                    token=token
-                )
-                print(f'✅ Successfully downloaded: {f}')
-            except Exception as e:
-                print(f'⚠️ Note on {f}: {e}')
-        "
+      - name: Download Database and Script from HuggingFace
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python -c "
+          import os
+          from huggingface_hub import hf_hub_download
+          files = ['auto_scraper.py', 'posted_movies.txt', 'page_tracker.txt']
+          for f in files:
+              try:
+                  hf_hub_download(
+                      repo_id='Sudarshan143/Scrapper2', 
+                      filename=f, 
+                      repo_type='space', 
+                      local_dir='.', 
+                      local_dir_use_symlinks=False, 
+                      token=os.environ.get('HF_TOKEN')
+                  )
+                  print(f'✅ Downloaded: {f}')
+              except Exception as e:
+                  print(f'⚠️ Note on {f}: {e}')
+          "
 
-    - name: Run Smart Splitter Scraper
-      run: |
-        if [ -f "auto_scraper.py" ]; then
+      - name: Run Main Scraper Engine
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          API_ID: 30022842
+          API_HASH: "81cb9516a563932a13dc973d517e8a88"
+        run: |
+          # Script ko run karein
           python auto_scraper.py
-        else
-          echo "❌ auto_scraper.py file local workspace me nahi mili!"
-          exit 1
-        fi
 
-    - name: Upload Updated Database Back to Hugging Face Space
-      if: always()
-      env:
-        HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      run: |
-        echo "📤 Syncing database files back to Hugging Face..."
-        python -c "
-        import os
-        from huggingface_hub import HfApi
-        token = os.environ.get('HF_TOKEN', '').strip()
-        if not token:
-            print('❌ HF_TOKEN Secret is Missing.')
-            exit(0)
-            
-        api = HfApi(token=token)
-        for f in ['posted_movies.txt', 'page_tracker.txt']:
-            if os.path.exists(f):
-                try:
-                    api.upload_file(path_or_fileobj=f, path_in_repo=f, repo_id='Sudarshan143/Scrapper2', repo_type='space')
-                    print(f'✅ Successfully synced {f} to HF Space!')
-                except Exception as e:
-                    print(f'❌ Upload failed for {f}: {e}')
-        "
+      - name: Upload Updated Database to HuggingFace
+        if: always() # Script crash ho ya success, DB update honi chahiye
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python -c "
+          import os
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ.get('HF_TOKEN'))
+          for f in ['posted_movies.txt', 'page_tracker.txt']:
+              if os.path.exists(f):
+                  try:
+                      api.upload_file(path_or_fileobj=f, path_in_repo=f, repo_id='Sudarshan143/Scrapper2', repo_type='space')
+                      print(f'✅ Synced {f} to HF Space!')
+                  except Exception as e:
+                      print(f'❌ Upload failed for {f}: {e}')
+          "
 
